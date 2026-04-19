@@ -63,6 +63,18 @@ function SideDrawer({ isOpen, onClose, regionName, data, product }) {
               </div>
             </div>
 
+            {/* Scale Badge */}
+            <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl">
+              <span className="text-xs font-bold text-slate-500 uppercase">Suggested Entry</span>
+              <span className={`text-xs font-extrabold px-3 py-1 rounded-full border ${
+                data.scale_suggestion?.scale_type === 'Large Scale' ? 'bg-rose-50 text-rose-600 border-rose-200' :
+                data.scale_suggestion?.scale_type === 'Medium Scale' ? 'bg-amber-50 text-amber-600 border-amber-200' :
+                'bg-emerald-50 text-emerald-600 border-emerald-200'
+              }`}>
+                {data.scale_suggestion?.scale_type || 'Checking...'}
+              </span>
+            </div>
+
             {/* Core Metrics */}
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200/50 shadow-sm">

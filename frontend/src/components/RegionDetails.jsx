@@ -145,12 +145,64 @@ function RegionDetails({ product }) {
               </div>
             </div>
 
-            {/* Actionable AI Strategy (Full width) */}
-            <div className={`p-6 rounded-2xl border ${insight.border} ${insight.bg} ${insight.color} flex items-start gap-4 shadow-sm`}>
-              <span className="text-3xl">{insight.icon}</span>
-              <div>
-                <h4 className="text-xl font-bold mb-1">AI Logistics Strategy</h4>
-                <p className="text-lg opacity-90">{insight.text}</p>
+            {/* Scale & Strategy Suggestion */}
+            <div className="bg-white/80 backdrop-blur rounded-2xl border border-surface-200 overflow-hidden shadow-sm">
+              <div className="p-6 border-b border-surface-100 bg-gradient-to-r from-indigo-50/50 to-transparent flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">Scale & Strategy Suggestion</h3>
+                  <p className="text-sm text-slate-500 mt-1">AI-calculated entry strategy based on current market velocity</p>
+                </div>
+                <div className={`px-4 py-1.5 rounded-full text-sm font-bold border shadow-sm ${
+                  data.scale_suggestion?.scale_type === 'Large Scale' ? 'bg-rose-50 border-rose-200 text-rose-600' :
+                  data.scale_suggestion?.scale_type === 'Medium Scale' ? 'bg-amber-50 border-amber-200 text-amber-600' :
+                  'bg-emerald-50 border-emerald-200 text-emerald-600'
+                }`}>
+                  {data.scale_suggestion?.scale_type || 'Analyzing Scale...'}
+                </div>
+              </div>
+              
+              <div className="p-6 space-y-8">
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/60 text-slate-700 italic leading-relaxed">
+                  "{data.scale_suggestion?.description || 'Determining tactical approach based on signal velocity...'}"
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-6">
+                  {/* Pros */}
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-extrabold text-emerald-600 uppercase tracking-widest flex items-center gap-2">
+                       <div className="p-1 bg-emerald-100 rounded-md">
+                         <TrendingUp className="w-3.5 h-3.5" />
+                       </div>
+                       Strategic Advantages (Pros)
+                    </h4>
+                    <div className="space-y-2">
+                       {data.scale_suggestion?.pros?.map((pro, idx) => (
+                         <div key={idx} className="flex items-center gap-3 p-3 bg-emerald-50/50 border border-emerald-100/60 rounded-xl text-sm text-emerald-800 font-medium">
+                           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                           {pro}
+                         </div>
+                       )) || <p className="text-xs text-slate-400">Loading advantages...</p>}
+                    </div>
+                  </div>
+
+                  {/* Cons */}
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-extrabold text-rose-600 uppercase tracking-widest flex items-center gap-2">
+                       <div className="p-1 bg-rose-100 rounded-md">
+                         <AlertCircle className="w-3.5 h-3.5" />
+                       </div>
+                       Market Risks (Cons)
+                    </h4>
+                    <div className="space-y-2">
+                       {data.scale_suggestion?.cons?.map((con, idx) => (
+                         <div key={idx} className="flex items-center gap-3 p-3 bg-rose-50/40 border border-rose-100/50 rounded-xl text-sm text-rose-800 font-medium">
+                           <div className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+                           {con}
+                         </div>
+                       )) || <p className="text-xs text-slate-400">Loading risk factors...</p>}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 

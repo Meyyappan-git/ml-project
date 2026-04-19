@@ -64,12 +64,19 @@ class SignalScores(BaseModel):
     social: float
     ecommerce: float
 
+class ScaleRecommendation(BaseModel):
+    scale_type: str  # 'Small Scale', 'Medium Scale', 'Large Scale'
+    description: str
+    pros: List[str]
+    cons: List[str]
+
 class DemandResponse(BaseModel):
     region: str
     product: str
     demand_score: float
     recommended_units: float
     signals: SignalScores
+    scale_suggestion: ScaleRecommendation
     timestamp: str
 
 class AnalyzeResponse(BaseModel):
@@ -88,6 +95,30 @@ class BrandDemandResponse(BaseModel):
     state: Optional[str]
     top_brand: str
     brands: List[BrandDemandItem]
+
+# --- Recommendation Engine ---
+def get_scale_recommendation(score: float, product: str) -> dict:
+    if score >= 75:
+        return {
+            "scale_type": "Large Scale",
+            "description": f"The demand for {product} is reaching a critical mass. This is the optimal time for an aggressive market entry.",
+            "pros": ["Maximum market share capture", "Economy of scale in production", "Dominant brand visibility"],
+            "cons": ["High initial capital risk", "Intense competition from leaders", "Complex logistics management"]
+        }
+    elif score >= 50:
+        return {
+            "scale_type": "Medium Scale",
+            "description": f"Sustainable growth signals detected. A measured expansion strategy is recommended to test local variance.",
+            "pros": ["Balanced risk-reward ratio", "Faster agility to market shifts", "Lower overhead costs"],
+            "cons": ["Risk of being out-scaled by giants", "Limited bargaining power with vendors"]
+        }
+    else:
+        return {
+            "scale_type": "Small Scale",
+            "description": f"Targeted micro-market demand. We suggest a pilot-based approach to minimize inventory risk.",
+            "pros": ["Minimal financial exposure", "Personalized customer insights", "Lean operations"],
+            "cons": ["Slower ROI", "Higher per-unit costs", "Low visibility"]
+        }
 
 # --- Database Helpers ---
 def save_prediction(doc: dict):
@@ -146,6 +177,7 @@ async def analyze_product(req: AnalyzeRequest):
             "demand_score": score,
             "recommended_units": units,
             "signals": signals,
+            "scale_suggestion": get_scale_recommendation(score, product_clean),
             "timestamp": timestamp
         }
         
@@ -167,8 +199,10 @@ async def get_demand(product: str = Query(...), region: str = Query(...)):
         # Find latest with normalized matching
         matches = [d for d in in_memory_db if d['product'].lower() == product_clean.lower() and d['region'].lower() == region_clean.lower()]
         if matches:
-            # Assumes append order is chronological
-            return DemandResponse(**matches[-1])
+            res_doc = matches[-1].copy()
+            if 'scale_suggestion' not in res_doc:
+                res_doc['scale_suggestion'] = get_scale_recommendation(res_doc['demand_score'], res_doc['product'])
+            return DemandResponse(**res_doc)
         raise HTTPException(status_code=404, detail=f"No data found for {product_clean} in {region_clean}")
     else:
         try:
@@ -179,6 +213,9 @@ async def get_demand(product: str = Query(...), region: str = Query(...)):
                 sort=[("timestamp", -1)]
             )
             if doc:
+                # Inject recommendation if missing (for legacy docs)
+                if 'scale_suggestion' not in doc:
+                    doc['scale_suggestion'] = get_scale_recommendation(doc['demand_score'], doc['product'])
                 return DemandResponse(**doc)
             raise HTTPException(status_code=404, detail=f"No data found for {product_clean} in {region_clean}")
         except Exception as e:
@@ -190,7 +227,12 @@ async def get_all_demands():
     Returns all collected predictions.
     """
     docs = get_predictions()
-    return [DemandResponse(**d) for d in docs]
+    results = []
+    for d in docs:
+        if 'scale_suggestion' not in d:
+            d['scale_suggestion'] = get_scale_recommendation(d['demand_score'], d['product'])
+        results.append(DemandResponse(**d))
+    return results
 
 
 # Load brand data from external JSON
