@@ -13,18 +13,25 @@ function RegionDetails({ product }) {
   useEffect(() => {
     if (!product || !regionName) return;
     setLoading(true);
-    axios.get(`/api/demand?product=${product}&region=${regionName}`)
+    
+    // Use URLSearchParams for robust encoding of names with spaces or special chars
+    const params = new URLSearchParams({ product, region: regionName });
+    
+    axios.get(`/api/demand?${params.toString()}`)
       .then(res => setData(res.data))
-      .catch(err => console.error(err))
+      .catch(err => {
+        console.error("Error fetching region data:", err.response?.data || err.message);
+        setData(null);
+      })
       .finally(() => setLoading(false));
   }, [product, regionName]);
 
   const insight = useMemo(() => {
     if (!data || data.demand_score == null) return null;
     const score = data.demand_score;
-    if (score > 75) return { text: "High demand — scale up production", color: 'text-red-400', bg: 'bg-red-400/10', border: 'border-red-500/20' };
-    if (score >= 50) return { text: "Moderate demand — maintain current output", color: 'text-yellow-400', bg: 'bg-yellow-400/10', border: 'border-yellow-500/20' };
-    return { text: "Low demand — reduce inventory", color: 'text-green-400', bg: 'bg-green-400/10', border: 'border-green-500/20' };
+    if (score > 75) return { text: "High demand — scale up production", color: 'text-red-600', bg: 'bg-gradient-to-r from-red-50 to-orange-50', border: 'border-red-200', icon: '🔥' };
+    if (score >= 50) return { text: "Moderate demand — maintain current output", color: 'text-amber-600', bg: 'bg-gradient-to-r from-amber-50 to-yellow-50', border: 'border-amber-200', icon: '⚡' };
+    return { text: "Low demand — reduce inventory", color: 'text-emerald-600', bg: 'bg-gradient-to-r from-emerald-50 to-teal-50', border: 'border-emerald-200', icon: '📦' };
   }, [data]);
 
   const mockSparklineData = useMemo(() => {
@@ -44,90 +51,94 @@ function RegionDetails({ product }) {
   if (!product) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center h-full">
-        <p className="text-slate-400">Please search for a product first.</p>
-        <button onClick={() => navigate('/')} className="mt-4 px-4 py-2 bg-brand-500 text-white rounded-lg hover:bg-brand-400">Go to Search</button>
+        <p className="text-slate-500">Please search for a product first.</p>
+        <button onClick={() => navigate('/')} className="mt-4 px-5 py-2.5 bg-gradient-to-r from-brand-500 to-indigo-600 text-white rounded-xl hover:shadow-lg hover:shadow-brand-200/50 transition-all font-medium">Go to Search</button>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 bg-dark-800 rounded-2xl border border-dark-700 shadow-xl shadow-black/50 overflow-hidden flex flex-col">
+    <div className="flex-1 glass-card rounded-2xl overflow-hidden flex flex-col">
       {/* Header */}
-      <div className="flex items-center gap-4 p-6 border-b border-dark-700 bg-dark-900/50">
+      <div className="flex items-center gap-4 p-6 border-b border-surface-200 bg-gradient-to-r from-brand-50/50 via-indigo-50/30 to-transparent">
         <button 
           onClick={() => navigate(-1)} 
-          className="p-2 bg-dark-700 hover:bg-dark-600 rounded-lg text-slate-300 transition-colors"
+          className="p-2 bg-white hover:bg-brand-50 rounded-xl text-slate-500 hover:text-brand-600 transition-all border border-surface-200 shadow-sm hover:shadow-md"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div>
-          <h1 className="text-3xl font-bold text-white">{regionName}</h1>
-          <p className="text-slate-400 mt-1">Comprehensive Demand Analysis for <span className="text-brand-400 font-semibold">{product}</span></p>
+          <h1 className="text-3xl font-extrabold text-slate-900">{regionName}</h1>
+          <p className="text-slate-500 mt-1">Comprehensive Demand Analysis for <span className="text-brand-600 font-semibold">{product}</span></p>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-6">
         {loading ? (
-          <div className="flex flex-col items-center justify-center p-12 text-slate-400">
+          <div className="flex flex-col items-center justify-center p-12 text-slate-500">
              <div className="w-10 h-10 border-4 border-brand-500 border-t-transparent rounded-full animate-spin mb-4"></div>
              <p>Analyzing deeper signals for {regionName}...</p>
           </div>
         ) : !data ? (
-          <div className="text-center p-12 text-red-400">Failed to load region data.</div>
+          <div className="text-center p-12 text-red-500">Failed to load region data.</div>
         ) : (
           <div className="max-w-5xl mx-auto space-y-8">
             {/* Core Metrics & Insight Row */}
             <div className="grid md:grid-cols-3 gap-6">
               <div className="md:col-span-1 grid grid-rows-2 gap-6">
-                <div className="bg-dark-900 p-6 rounded-2xl border border-dark-700">
-                  <div className="flex items-center gap-2 text-slate-400 mb-2">
-                    <Activity className="w-5 h-5 text-brand-400" />
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-2xl border border-blue-200/50 shadow-sm">
+                  <div className="flex items-center gap-2 text-slate-500 mb-2">
+                    <div className="p-1.5 bg-blue-100 rounded-lg">
+                      <Activity className="w-4 h-4 text-blue-600" />
+                    </div>
                     <span className="font-semibold text-lg">Demand Score</span>
                   </div>
-                  <div className="text-5xl font-bold text-white mt-4">
-                    {data.demand_score.toFixed(1)}<span className="text-slate-500 text-2xl">/100</span>
+                  <div className="text-5xl font-extrabold text-slate-900 mt-4">
+                    {data.demand_score.toFixed(1)}<span className="text-slate-400 text-2xl">/100</span>
                   </div>
                 </div>
-                <div className="bg-dark-900 p-6 rounded-2xl border border-dark-700">
-                  <div className="flex items-center gap-2 text-slate-400 mb-2">
-                    <Package className="w-5 h-5 text-brand-400" />
+                <div className="bg-gradient-to-br from-violet-50 to-purple-50 p-6 rounded-2xl border border-violet-200/50 shadow-sm">
+                  <div className="flex items-center gap-2 text-slate-500 mb-2">
+                    <div className="p-1.5 bg-violet-100 rounded-lg">
+                      <Package className="w-4 h-4 text-violet-600" />
+                    </div>
                     <span className="font-semibold text-lg">Recommended Units</span>
                   </div>
-                  <div className="text-5xl font-bold text-brand-400 mt-4">
+                  <div className="text-5xl font-extrabold text-violet-600 mt-4">
                     {Math.round(data.recommended_units)}
                   </div>
                 </div>
               </div>
 
               {/* Advanced Signal Breakdown */}
-              <div className="md:col-span-2 bg-dark-900 rounded-2xl border border-dark-700 p-6 flex flex-col justify-center">
-                <h3 className="text-lg font-semibold text-white mb-6">Aggregate Signals Breakdown</h3>
+              <div className="md:col-span-2 bg-white/80 backdrop-blur rounded-2xl border border-surface-200 p-6 flex flex-col justify-center shadow-sm">
+                <h3 className="text-lg font-bold text-slate-800 mb-6">Aggregate Signals Breakdown</h3>
                 <div className="space-y-6">
                   <div>
                     <div className="flex justify-between text-sm mb-2">
-                      <span className="text-slate-300">Google Trends Heat (40% Weight)</span>
-                      <span className="font-bold text-white">{data.signals.trend.toFixed(1)}</span>
+                      <span className="text-slate-600 font-medium">📈 Google Trends Heat (40% Weight)</span>
+                      <span className="font-bold text-slate-800">{data.signals.trend.toFixed(1)}</span>
                     </div>
-                    <div className="w-full bg-dark-700 rounded-full h-2">
-                      <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${data.signals.trend}%` }}></div>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-sm mb-2">
-                      <span className="text-slate-300">Social Media Mentions (30% Weight)</span>
-                      <span className="font-bold text-white">{data.signals.social.toFixed(1)}</span>
-                    </div>
-                    <div className="w-full bg-dark-700 rounded-full h-2">
-                      <div className="bg-purple-500 h-2 rounded-full" style={{ width: `${data.signals.social}%` }}></div>
+                    <div className="w-full bg-blue-100/60 rounded-full h-2.5">
+                      <div className="bg-gradient-to-r from-blue-400 to-blue-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${data.signals.trend}%` }}></div>
                     </div>
                   </div>
                   <div>
                     <div className="flex justify-between text-sm mb-2">
-                      <span className="text-slate-300">E-Commerce Velocity (30% Weight)</span>
-                      <span className="font-bold text-white">{data.signals.ecommerce.toFixed(1)}</span>
+                      <span className="text-slate-600 font-medium">💬 Social Media Mentions (30% Weight)</span>
+                      <span className="font-bold text-slate-800">{data.signals.social.toFixed(1)}</span>
                     </div>
-                    <div className="w-full bg-dark-700 rounded-full h-2">
-                      <div className="bg-emerald-500 h-2 rounded-full" style={{ width: `${data.signals.ecommerce}%` }}></div>
+                    <div className="w-full bg-purple-100/60 rounded-full h-2.5">
+                      <div className="bg-gradient-to-r from-purple-400 to-purple-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${data.signals.social}%` }}></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-sm mb-2">
+                      <span className="text-slate-600 font-medium">🛒 E-Commerce Velocity (30% Weight)</span>
+                      <span className="font-bold text-slate-800">{data.signals.ecommerce.toFixed(1)}</span>
+                    </div>
+                    <div className="w-full bg-emerald-100/60 rounded-full h-2.5">
+                      <div className="bg-gradient-to-r from-emerald-400 to-emerald-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${data.signals.ecommerce}%` }}></div>
                     </div>
                   </div>
                 </div>
@@ -135,8 +146,8 @@ function RegionDetails({ product }) {
             </div>
 
             {/* Actionable AI Strategy (Full width) */}
-            <div className={`p-6 rounded-2xl border ${insight.border} ${insight.bg} ${insight.color} flex items-start gap-4`}>
-              <AlertCircle className="w-8 h-8 shrink-0" />
+            <div className={`p-6 rounded-2xl border ${insight.border} ${insight.bg} ${insight.color} flex items-start gap-4 shadow-sm`}>
+              <span className="text-3xl">{insight.icon}</span>
               <div>
                 <h4 className="text-xl font-bold mb-1">AI Logistics Strategy</h4>
                 <p className="text-lg opacity-90">{insight.text}</p>
@@ -144,28 +155,36 @@ function RegionDetails({ product }) {
             </div>
 
             {/* Historical Sparkline Row */}
-            <div className="bg-dark-900 rounded-2xl border border-dark-700 p-6">
+            <div className="bg-gradient-to-br from-sky-50/80 to-indigo-50/50 rounded-2xl border border-sky-200/50 p-6 shadow-sm">
               <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-2 text-white">
-                  <TrendingUp className="w-5 h-5 text-brand-400" />
-                  <h3 className="text-lg font-semibold">6-Month Trajectory Projection</h3>
+                <div className="flex items-center gap-2 text-slate-800">
+                  <div className="p-1.5 bg-sky-100 rounded-lg">
+                    <TrendingUp className="w-4 h-4 text-sky-600" />
+                  </div>
+                  <h3 className="text-lg font-bold">6-Month Trajectory Projection</h3>
                 </div>
               </div>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={mockSparklineData}>
                     <Tooltip 
-                      contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '12px' }}
-                      itemStyle={{ color: '#60a5fa' }}
+                      contentStyle={{ backgroundColor: 'rgba(255,255,255,0.95)', border: '1px solid #bfdbfe', borderRadius: '12px', boxShadow: '0 8px 24px rgba(59, 130, 246, 0.1)' }}
+                      itemStyle={{ color: '#2563eb' }}
                     />
                     <Line 
                       type="monotone" 
                       dataKey="value" 
-                      stroke="#3b82f6" 
+                      stroke="url(#lineGradient)" 
                       strokeWidth={4} 
-                      dot={{ r: 4, fill: '#1e293b', strokeWidth: 2, stroke: '#3b82f6' }}
-                      activeDot={{ r: 8, fill: '#3b82f6', stroke: '#1e293b', strokeWidth: 3 }}
+                      dot={{ r: 5, fill: '#ffffff', strokeWidth: 3, stroke: '#3b82f6' }}
+                      activeDot={{ r: 8, fill: '#3b82f6', stroke: '#ffffff', strokeWidth: 3 }}
                     />
+                    <defs>
+                      <linearGradient id="lineGradient" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="#6366f1" />
+                        <stop offset="100%" stopColor="#3b82f6" />
+                      </linearGradient>
+                    </defs>
                   </LineChart>
                 </ResponsiveContainer>
               </div>

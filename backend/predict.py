@@ -1,6 +1,11 @@
 import joblib
-import pandas as pd
+import numpy as np
 import os
+import warnings
+
+# Suppress sklearn feature-name warnings that flood stdout when
+# the model was trained on arrays but inference uses DataFrames.
+warnings.filterwarnings("ignore", category=UserWarning, module="sklearn")
 
 model_path = os.path.join(os.path.dirname(__file__), 'demand_model.pkl')
 model = None
@@ -23,20 +28,17 @@ def predict_demand(trend: float, social: float, ecommerce: float) -> dict:
     """
     if model is None:
         load_model()
-        
-    df = pd.DataFrame({
-        'trend': [trend],
-        'social': [social],
-        'ecommerce': [ecommerce]
-    })
-    
-    # In a real heavy system we'd run: shap_values = shap.TreeExplainer(model).shap_values(df)
+
+    # Use a plain numpy array to avoid sklearn feature-name warnings
+    X = np.array([[trend, social, ecommerce]])
+
+    # In a real heavy system we'd run: shap_values = shap.TreeExplainer(model).shap_values(X)
     # But for real-time API we mock the localized explainer impact based on variance.
-    prediction = float(model.predict(df)[0])
+    prediction = float(model.predict(X)[0])
     
     # Confidence is derived from ensemble tree variance
-    preds = [dt.predict(df)[0] for dt in model.estimators_]
-    variance = max(0.1, float(pd.Series(preds).std()))
+    preds = np.array([dt.predict(X)[0] for dt in model.estimators_])
+    variance = max(0.1, float(preds.std()))
     confidence = max(0.0, min(100.0, 100.0 - (variance * 2.5)))
     
     # SHAP Explainer (Impact values)

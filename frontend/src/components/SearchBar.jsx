@@ -27,12 +27,12 @@ function SearchBar({ onSearch }) {
 
   return (
     <div className="relative flex items-center w-full">
-      <div className="absolute left-3 text-slate-400">
-        <Search className="h-4 w-4" />
+      <div className="absolute left-4 text-brand-400">
+        <Search className="h-5 w-5" />
       </div>
       <input
         type="text"
-        className="w-full bg-dark-800 border border-dark-700 text-slate-200 text-sm rounded-full focus:ring-2 focus:ring-brand-500 focus:border-brand-500 block pl-10 p-2.5 outline-none transition-all placeholder-slate-500"
+        className="w-full bg-surface-50/80 border-2 border-surface-200 text-slate-800 text-base rounded-2xl focus:ring-4 focus:ring-brand-400/20 focus:border-brand-400 block pl-12 pr-12 p-3.5 outline-none transition-all placeholder-slate-400 shadow-sm hover:border-brand-300"
         placeholder="Search for a product (e.g. Laptops)..."
         value={inputValue}
         onChange={handleChange}
@@ -40,7 +40,7 @@ function SearchBar({ onSearch }) {
       {inputValue && (
         <button
           onClick={handleClear}
-          className="absolute right-3 text-slate-400 hover:text-white transition-colors"
+          className="absolute right-4 text-slate-400 hover:text-red-400 transition-colors p-1 rounded-full hover:bg-red-50"
         >
           <X className="h-4 w-4" />
         </button>
