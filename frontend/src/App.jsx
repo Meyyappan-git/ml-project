@@ -5,11 +5,10 @@ import Map from './components/Map';
 import RegionDetails from './components/RegionDetails';
 import Charts from './components/Charts';
 import BrandDemand from './components/BrandDemand';
-import { Activity, Map as MapIcon, BarChart3, Search, ArrowRight, Building2 } from 'lucide-react';
+import { Activity, Map as MapIcon, BarChart3, Search, ArrowRight, Building2, Wifi } from 'lucide-react';
+import ConnectionStatus from './components/ConnectionStatus';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-
-axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+import api from './api';
 
 function AppContent() {
   const navigate = useNavigate();
@@ -139,7 +138,7 @@ function AppContent() {
     setLoading(true);
     setError(null);
     try {
-      const res = await axios.post('/api/analyze', { product: searchProduct });
+      const res = await api.post('/api/analyze', { product: searchProduct });
       setDemandData(res.data.results);
     } catch (err) {
       console.error(err);
@@ -176,6 +175,7 @@ function AppContent() {
           </div>
 
           <div className="flex items-center gap-4">
+            <ConnectionStatus />
             <select 
               value={language} 
               onChange={(e) => setLanguage(e.target.value)}

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { TrendingUp, Package, Activity, AlertCircle, ArrowLeft } from 'lucide-react';
 import { LineChart, Line, Tooltip, ResponsiveContainer } from 'recharts';
-import axios from 'axios';
+import api from '../api';
 
 function RegionDetails({ product }) {
   const { regionName } = useParams();
@@ -17,7 +17,7 @@ function RegionDetails({ product }) {
     // Use URLSearchParams for robust encoding of names with spaces or special chars
     const params = new URLSearchParams({ product, region: regionName });
     
-    axios.get(`/api/demand?${params.toString()}`)
+    api.get(`/api/demand?${params.toString()}`)
       .then(res => setData(res.data))
       .catch(err => {
         console.error("Error fetching region data:", err.response?.data || err.message);

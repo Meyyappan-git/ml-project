@@ -35,8 +35,9 @@ from pymongo import MongoClient
 import logging
 
 mongo_uri = os.getenv("MONGODB_URI")
-# Fallback to local memory dictionary if mongo fails or is not provided (for run without real credentials)
+in_memory_db = []
 use_in_memory = False
+
 try:
     if mongo_uri:
         client = MongoClient(mongo_uri, serverSelectionTimeoutMS=2000)
@@ -47,11 +48,9 @@ try:
     else:
         print("No MONGODB_URI in ENV. Using in-memory store.")
         use_in_memory = True
-        in_memory_db = []
 except Exception as e:
     print(f"MongoDB connection failed: {e}. Using in-memory fallback.")
     use_in_memory = True
-    in_memory_db = []
 
 # Ensure model is trained at startup
 train_model()
@@ -92,25 +91,34 @@ class BrandDemandResponse(BaseModel):
 
 # --- Database Helpers ---
 def save_prediction(doc: dict):
-    if use_in_memory:
-        in_memory_db.append(doc)
-    else:
+    # Always keep in memory as a cache/fallback
+    in_memory_db.append(doc)
+    if not use_in_memory:
         try:
             collection.insert_one(doc.copy())
         except Exception as e:
-            print(f"Failed to save to MongoDB: {e}")
+            print(f"Failed to save to MongoDB: {e}. Data preserved in memory.")
 
 def get_predictions() -> List[dict]:
-    if use_in_memory:
-        return in_memory_db
-    else:
+    if not use_in_memory:
         try:
-            # Exclude _id
-            return list(collection.find({}, {'_id': 0}).sort("timestamp", -1))
-        except:
-            return []
+            # Try MongoDB first
+            docs = list(collection.find({}, {'_id': 0}).sort("timestamp", -1))
+            if docs: return docs
+        except Exception as e:
+            print(f"MongoDB fetch failed: {e}. Falling back to memory.")
+    
+    # Return in-memory data (reversed for latest first)
+    return list(reversed(in_memory_db))
 
 # --- API Endpoints ---
+@app.get("/api/health")
+async def health_check():
+    return {
+        "status": "ok",
+        "mongodb": "connected" if not use_in_memory else "using_in_memory_fallback",
+        "timestamp": datetime.datetime.utcnow().isoformat()
+    }
 @app.post("/api/analyze", response_model=AnalyzeResponse)
 async def analyze_product(req: AnalyzeRequest):
     """
@@ -185,41 +193,15 @@ async def get_all_demands():
     return [DemandResponse(**d) for d in docs]
 
 
-# Brand/Company demand map: product keywords -> relevant brands
-PRODUCT_BRAND_MAP: Dict[str, List[str]] = {
-    "phone": ["Samsung", "Apple", "Xiaomi", "OnePlus", "Vivo", "OPPO", "Realme"],
-    "mobile": ["Samsung", "Apple", "Xiaomi", "OnePlus", "Vivo", "OPPO", "Realme"],
-    "smartphone": ["Samsung", "Apple", "Xiaomi", "OnePlus", "Vivo", "OPPO", "Realme"],
-    "laptop": ["HP", "Dell", "Lenovo", "Asus", "Acer", "Apple", "MSI"],
-    "tv": ["Samsung", "LG", "Sony", "Xiaomi", "OnePlus", "TCL", "Vu"],
-    "television": ["Samsung", "LG", "Sony", "Xiaomi", "OnePlus", "TCL", "Vu"],
-    "shoe": ["Nike", "Adidas", "Puma", "Reebok", "Bata", "Woodland", "Skechers"],
-    "shoes": ["Nike", "Adidas", "Puma", "Reebok", "Bata", "Woodland", "Skechers"],
-    "sneakers": ["Nike", "Adidas", "Puma", "New Balance", "Converse", "Vans", "Reebok"],
-    "shirt": ["Allen Solly", "Van Heusen", "Peter England", "Louis Philippe", "Raymond", "Zara", "H&M"],
-    "jeans": ["Levi's", "Wrangler", "Lee", "Pepe Jeans", "Spykar", "Flying Machine", "Jack & Jones"],
-    "watch": ["Titan", "Fastrack", "Casio", "Fossil", "Rolex", "Timex", "Apple"],
-    "refrigerator": ["Samsung", "LG", "Whirlpool", "Haier", "Godrej", "Bosch", "Panasonic"],
-    "fridge": ["Samsung", "LG", "Whirlpool", "Haier", "Godrej", "Bosch", "Panasonic"],
-    "ac": ["Daikin", "Voltas", "LG", "Samsung", "Hitachi", "Blue Star", "Carrier"],
-    "air conditioner": ["Daikin", "Voltas", "LG", "Samsung", "Hitachi", "Blue Star", "Carrier"],
-    "bike": ["Hero", "Honda", "Bajaj", "TVS", "Royal Enfield", "Yamaha", "Suzuki"],
-    "motorcycle": ["Hero", "Honda", "Bajaj", "TVS", "Royal Enfield", "Yamaha", "Suzuki"],
-    "car": ["Maruti Suzuki", "Hyundai", "Tata", "Mahindra", "Honda", "Toyota", "Kia"],
-    "headphones": ["Sony", "Bose", "JBL", "Boat", "Sennheiser", "Audio-Technica", "Jabra"],
-    "earphones": ["Sony", "boat", "JBL", "Samsung", "Apple", "Realme", "Noise"],
-    "camera": ["Canon", "Nikon", "Sony", "Fujifilm", "Panasonic", "Olympus", "Gopro"],
-    "tablet": ["Apple", "Samsung", "Lenovo", "Xiaomi", "Microsoft", "Realme", "Nokia"],
-    "washing machine": ["LG", "Samsung", "Whirlpool", "Bosch", "IFB", "Haier", "Panasonic"],
-    "milk": ["Amul", "Mother Dairy", "Nandini", "Heritage", "Parag", "Nestle", "Britannia"],
-    "biscuit": ["Britannia", "Parle", "ITC", "Oreo", "McVitie's", "Sunfeast", "Priya Gold"],
-    "chocolate": ["Cadbury", "Nestle", "Amul", "Ferrero Rocher", "Lindt", "Mars", "Hershey's"],
-    "soap": ["Lux", "Dettol", "Dove", "Lifebuoy", "Pears", "Hamam", "Santoor"],
-    "shampoo": ["Head & Shoulders", "Pantene", "Dove", "L'Oreal", "Sunsilk", "Clinic Plus", "Himalaya"],
-    "tea": ["Tata Tea", "Brooke Bond", "Red Label", "Wagh Bakri", "Lipton", "Tetley", "Society"],
-    "coffee": ["Nescafe", "Bru", "Tata Coffee", "Starbucks", "Blue Tokai", "Continental", "CCD"],
-    "book": ["Penguin", "Oxford", "S. Chand", "Arihant", "Wiley", "McGraw Hill", "Harper Collins"],
-}
+# Load brand data from external JSON
+brand_data_path = os.path.join(os.path.dirname(__file__), 'brand_data.json')
+try:
+    with open(brand_data_path, 'r') as f:
+        PRODUCT_BRAND_MAP = json.load(f)
+    print(f"Loaded {len(PRODUCT_BRAND_MAP)} product-brand mappings from JSON.")
+except Exception as e:
+    print(f"Error loading brand_data.json: {e}. Using minimal fallback.")
+    PRODUCT_BRAND_MAP = {"laptop": ["HP", "Dell"], "phone": ["Samsung", "Apple"]}
 
 # In-memory cache for web-discovered brands
 _web_brand_cache: Dict[str, List[str]] = {}
@@ -275,10 +257,11 @@ async def _search_brands_online(product: str) -> List[str]:
             'Review', 'Reviews', 'Price', 'Buy', 'Online', 'Quality', 'Market',
             'January', 'February', 'March', 'April', 'May', 'June', 'July',
             'August', 'September', 'October', 'November', 'December',
-            'Updated', 'Guide', 'Which', 'What', 'How', 'Are', 'For',
-            'With', 'From', 'This', 'That', 'These', 'Those', 'Here',
-            'There', 'Where', 'When', 'Why', 'All', 'Your', 'Our',
-            'Their', 'More', 'Also', 'Some', 'Other', 'New', 'Year',
+            'Updated', 'Guide', 'Which', 'What', 'How', 'Are', 'For', 'And',
+            'With', 'From', 'This', 'That', 'These', 'Those', 'Here', 'Service',
+            'There', 'Where', 'When', 'Why', 'All', 'Your', 'Our', 'Business',         
+            'Their', 'More', 'Also', 'Some', 'Other', 'New', 'Year', 'Ratings',
+            'Comparison', 'Available', 'Sale', 'Offers', 'Deals', 'Feature'
         }
         for w in cap_words:
             if w not in stop_words and w.lower() != product.lower() and len(w) >= 2:

@@ -4,7 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid
 } from 'recharts';
 import { TrendingUp, TrendingDown, Minus, Award, Search, RefreshCw, Building2 } from 'lucide-react';
-import axios from 'axios';
+import api from '../api';
 
 const COLORS = [
   '#6366f1', '#06b6d4', '#f59e0b', '#10b981', '#f43f5e',
@@ -68,7 +68,7 @@ function BrandDemand({ initialProduct = '', initialState = '' }) {
     setError(null);
     setData(null);
     try {
-      const res = await axios.get('/api/brand-demand', { 
+      const res = await api.get('/api/brand-demand', { 
         params: { product: product.trim(), state: state || undefined } 
       });
       setData(res.data);
